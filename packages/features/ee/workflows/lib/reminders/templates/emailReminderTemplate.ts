@@ -2,6 +2,11 @@ import dayjs from "@calcom/dayjs";
 import { APP_NAME } from "@calcom/lib/constants";
 import { TimeFormat } from "@calcom/lib/timeFormat";
 import { WorkflowActions } from "@calcom/prisma/enums";
+import type { CalendarEvent } from "@calcom/types/Calendar";
+import { guessEventLocationType } from "@calcom/app-store/locations";
+import { getVideoCallUrlFromCalEvent } from "@calcom/lib/CalEventParser";
+import type { TFunction } from "next-i18next";
+
 
 const emailReminderTemplate = (
   isEditingMode: boolean,
@@ -13,10 +18,21 @@ const emailReminderTemplate = (
   timeZone?: string,
   otherPerson?: string,
   name?: string,
-  isBrandingDisabled?: boolean
+  isBrandingDisabled?: boolean,
+  calEvent?: CalendarEvent,
+  t?: TFunction
 ) => {
   const currentTimeFormat = timeFormat || TimeFormat.TWELVE_HOUR;
   const dateTimeFormat = `ddd, MMM D, YYYY ${currentTimeFormat}`;
+
+  // We would not be able to determine provider name for DefaultEventLocationTypes
+  const providerName = guessEventLocationType(calEvent?.location)?.label;
+  const location = calEvent?.location;
+  let meetingUrl = location?.search(/^https?:/) !== -1 ? location : undefined;
+  if (calEvent) {
+    meetingUrl = getVideoCallUrlFromCalEvent(calEvent) || meetingUrl;
+  }
+  const isPhone = location?.startsWith("+");
 
   let eventDate = "";
 
@@ -46,6 +62,8 @@ const emailReminderTemplate = (
   const attendeeHtml = `<div><strong class="editor-text-bold">Attendees: </strong></div>You & ${otherPerson}<br><br>`;
 
   const branding = !isBrandingDisabled && !isEditingMode ? `<br><br>_<br><br>Scheduling by ${APP_NAME}` : "";
+
+  const meetingUrlLink = `<div><strong class="editor-text-bold">Meeting URL: </strong></div><a href="${}">${}</a><br><br>`;
 
   const endingHtml = `This reminder was triggered by a Workflow in Cal.${branding}</body>`;
 
